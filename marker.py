@@ -2,12 +2,64 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import datetime
 import os
+import random
 import sys
 import math
 import textwrap
+import time
+from os import system
 
 from PIL import Image, ImageFont, ImageDraw, ImageEnhance, ImageChops
+
+import datetime
+
+
+def create_assist_date(datestart=None, dateend=None):
+    # 创建日期辅助表
+
+    if datestart is None:
+        datestart = '2021-10-01'
+    if dateend is None:
+        dateend = datetime.datetime.now().strftime('%Y-%m-%d')
+
+    # 转为日期格式
+    datestart = datetime.datetime.strptime(datestart, '%Y-%m-%d')
+    dateend = datetime.datetime.strptime(dateend, '%Y-%m-%d')
+    date_list = []
+    date_list.append(datestart.strftime('%Y-%m-%d'))
+    while datestart < dateend:
+        # 日期叠加一天
+        datestart += datetime.timedelta(days=+1)
+        # 日期转字符串存入列表
+        date_list.append(datestart.strftime('%Y-%m-%d'))
+    return date_list
+
+
+def lead_zero(num):
+    if num < 10:
+        return f'0{num}'
+    return f'{num}'
+
+
+def create_random_time(args):
+    date_list = create_assist_date(args.begin_date, args.end_date)
+    minute = random.randint(0, 59)
+
+    # if args.time == 'working-time':
+    #
+    if args.time == 'morning':
+        hour = random.randint(9, 11)
+    elif args.time == 'afternoon':
+        hour = random.randint(14, 17)
+    elif args.time == 'night':
+        hour = random.randint(18, 20)
+    else:
+        hour = random.randint(9, 17)
+
+    return f'{random.choice(date_list)} {lead_zero(hour)}:{lead_zero(minute)}'
+
 
 
 def add_mark(imagePath, mark, args):
@@ -27,9 +79,9 @@ def add_mark(imagePath, mark, args):
             image = image.convert('RGB')
         image.save(new_name, quality=args.quality)
 
-        print(name + " Success.")
+        print(name + f" -> '{args.mark}' Success.")
     else:
-        print(name + " Failed.")
+        print(name + f" -> '{args.mark}' Failed.")
 
 
 def set_opacity(im, opacity):
@@ -72,11 +124,18 @@ def gen_mark(args):
 
     # 生成文字
     draw_table = ImageDraw.Draw(im=mark)
+    # 叠加阴影
+    draw_table.text(xy=(2, 2),
+                    text=args.mark,
+                    fill="#000000",
+                    font=ImageFont.truetype(args.font_family,
+                                            size=args.size))
     draw_table.text(xy=(0, 0),
                     text=args.mark,
                     fill=args.color,
                     font=ImageFont.truetype(args.font_family,
                                             size=args.size))
+
     del draw_table
 
     # 裁剪空白
@@ -86,6 +145,22 @@ def gen_mark(args):
     set_opacity(mark, args.opacity)
 
     def mark_im(im):
+        w, h = im.size
+
+        big = w
+        if w < h:
+            big = h
+
+        if im.mode != 'RGBA':
+            im = im.convert('RGBA')
+
+        mark_resize = w * 0.2 / mark.size[0]
+        mark2 = mark.resize((int(mark_resize * mark.size[0]), int(mark_resize * mark.size[1])))
+        im.paste(mark2,  # 大图
+                 (int(w * 0.04), int(w * 0.97 - (w - h) - mark2.size[1])), mask=mark2.split()[3])
+        return im
+
+    def mark_im1(im):
         ''' 在im图片上添加水印 im为打开的原图'''
 
         # 计算斜边长度
@@ -123,21 +198,30 @@ def gen_mark(args):
 
 
 def main():
+    now = int(time.time())
+    time_local = time.localtime(now)
+
     parse = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parse.add_argument("-f", "--file", type=str,
                        help="image file path or directory")
     parse.add_argument("-m", "--mark", type=str, help="watermark content")
     parse.add_argument("-o", "--out", default="./output",
                        help="image output directory, default is ./output")
-    parse.add_argument("-c", "--color", default="#8B8B1B", type=str,
-                       help="text color like '#000000', default is #8B8B1B")
+    parse.add_argument("-c", "--color", default="#EEEEEE", type=str,
+                       help="text color like '#000000', default is #EEEEEE")
+    parse.add_argument("-bd", "--begin-date", default="2021-10-01", type=str,
+                       help="date string like '2021-10-01', default is 2021-10-01")
+    parse.add_argument("-ed", "--end-date", default=time.strftime('%Y-%m-%d', time_local), type=str,
+                       help="date string like '2021-10-01', default is TODAY")
+    parse.add_argument("-t", "--time", default="working-time", type=str,
+                       help="['working-time','morning','afternoon','night'], default is working-time")
     parse.add_argument("-s", "--space", default=75, type=int,
                        help="space between watermarks, default is 75")
-    parse.add_argument("-a", "--angle", default=30, type=int,
-                       help="rotate angle of watermarks, default is 30")
-    parse.add_argument("--font-family", default="./font/青鸟华光简琥珀.ttf", type=str,
+    parse.add_argument("-a", "--angle", default=0, type=int,
+                       help="rotate angle of watermarks, default is 0")
+    parse.add_argument("--font-family", default="./font/SFMono.otf", type=str,
                        help=textwrap.dedent('''\
-                       font family of text, default is './font/青鸟华光简琥珀.ttf'
+                       font family of text, default is './font/SFMono.otf'
                        using font in system just by font file name
                        for example 'PingFang.ttc', which is default installed on macOS
                        '''))
@@ -150,21 +234,30 @@ def main():
                        '''))
     parse.add_argument("--size", default=50, type=int,
                        help="font size of text, default is 50")
-    parse.add_argument("--opacity", default=0.15, type=float,
-                       help="opacity of watermarks, default is 0.15")
-    parse.add_argument("--quality", default=80, type=int,
+    parse.add_argument("--opacity", default=1, type=float,
+                       help="opacity of watermarks, default is 1")
+    parse.add_argument("--quality", default=90, type=int,
                        help="quality of output images, default is 90")
 
     args = parse.parse_args()
 
+    args.mark = create_random_time(args)
+
     if isinstance(args.mark, str) and sys.version_info[0] < 3:
         args.mark = args.mark.decode("utf-8")
 
+    print(args.time)
     mark = gen_mark(args)
 
     if os.path.isdir(args.file):
         names = os.listdir(args.file)
         for name in names:
+            args.mark = create_random_time(args)
+
+            if isinstance(args.mark, str) and sys.version_info[0] < 3:
+                args.mark = args.mark.decode("utf-8")
+
+            mark = gen_mark(args)
             image_file = os.path.join(args.file, name)
             add_mark(image_file, mark, args)
     else:
@@ -173,3 +266,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    system('explorer.exe output')
