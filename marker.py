@@ -202,14 +202,14 @@ def main():
     time_local = time.localtime(now)
 
     parse = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parse.add_argument("-f", "--file", type=str,
+    parse.add_argument("-f", "--file", type=str, default="./input/",
                        help="image file path or directory")
     parse.add_argument("-m", "--mark", type=str, help="watermark content")
     parse.add_argument("-o", "--out", default="./output",
                        help="image output directory, default is ./output")
     parse.add_argument("-c", "--color", default="#EEEEEE", type=str,
                        help="text color like '#000000', default is #EEEEEE")
-    parse.add_argument("-bd", "--begin-date", default="2021-10-01", type=str,
+    parse.add_argument("-bd", "--begin-date", default=time.strftime('%Y-%m-01', time_local), type=str,
                        help="date string like '2021-10-01', default is 2021-10-01")
     parse.add_argument("-ed", "--end-date", default=time.strftime('%Y-%m-%d', time_local), type=str,
                        help="date string like '2021-10-01', default is TODAY")

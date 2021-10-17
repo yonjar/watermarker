@@ -1,6 +1,8 @@
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
 .idea
+*.zip
+批量加水印/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
