@@ -3,6 +3,8 @@
 .idea
 *.zip
 批量加水印/*
+input/*
+output/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -149,3 +151,4 @@ cython_debug/
 .idea/modules.xml
 .idea/vcs.xml
 .idea/watermarker.iml
+output/test.jpg
